@@ -1,0 +1,44 @@
+{
+  "name": "@philkrpp/phase-loader",
+  "version": "0.1.0",
+  "description": "Load env values from a self-hosted Phase secrets manager into a child process or the current process, with layered apps/paths and OS keyring tokens.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/philkrpp/phase-loader.git"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "phase-loader": "dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "prepack": "tsdown",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@napi-rs/keyring": "2.1.2",
+    "@phase.dev/phase-node": "3.2.0",
+    "cross-spawn": "7.0.6"
+  },
+  "devDependencies": {
+    "@types/cross-spawn": "6.0.6",
+    "@types/node": "22.20.5",
+    "tsdown": "0.23.1",
+    "typescript": "6.0.3",
+    "vitest": "5.0.5"
+  }
+}
