@@ -106,13 +106,13 @@ describe("check --offline", () => {
 
   it("works when git ls-files prints more than 1 MB", async () => {
     const dir = repo({ ".env.example": "KEY_OK=\n", "src/a.ts": "process.env.KEY_OK" }, [".env.example", "src/a.ts"]);
-    const bulk = join(dir, "bulk");
-    mkdirSync(bulk);
-    for (let i = 0; i < 9000; i++) writeFileSync(join(bulk, `${"f".repeat(120)}-${i}.txt`), "");
-    execFileSync("git", ["add", "--", "bulk"], { cwd: dir, stdio: "ignore" });
+    // index entries only (no files on disk): cheap, and check skips tracked files missing in the working tree
+    const blob = execFileSync("git", ["hash-object", "-w", "--stdin"], { cwd: dir, input: "", encoding: "utf8" }).trim();
+    const entries = Array.from({ length: 9000 }, (_, i) => `100644 ${blob}\tbulk/${"f".repeat(120)}-${i}.txt\n`).join("");
+    execFileSync("git", ["update-index", "--index-info"], { cwd: dir, input: entries });
     const { ok } = await check({ cwd: dir, offline: true });
     expect(ok).toBe(true);
-  }, 60_000);
+  });
 
   it("fails clearly without .env.example", async () => {
     const dir = repo({ "src/a.ts": "1" }, ["src/a.ts"]);

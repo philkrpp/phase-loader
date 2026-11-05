@@ -1,6 +1,6 @@
 {
   "name": "@philkrpp/phase-loader",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Load env values from a self-hosted Phase secrets manager into a child process or the current process, with layered apps/paths and OS keyring tokens.",
   "license": "MIT",
   "repository": {
