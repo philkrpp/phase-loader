@@ -22,7 +22,10 @@ const USAGE = [
  */
 const QUOTED = /["'`]([A-Z_][A-Z0-9_]*)["'`]/g;
 /** Provided by the runtime or by phase-loader itself, never documented in `.env.example`. */
-const BUILT_IN = new Set(["NODE_ENV", "MODE", "DEV", "PROD", "SSR", "BASE_URL", "CI", "PHASE_ENV_LOADED"]);
+const BUILT_IN = new Set([
+  "NODE_ENV", "MODE", "DEV", "PROD", "SSR", "BASE_URL", "CI", "PHASE_ENV_LOADED", "VITEST",
+  "PATH", "HOME", "USER", "LOGNAME", "SHELL", "PWD", "TMPDIR", "TZ", "LANG",
+]);
 
 function trackedFiles(dir: string): string[] {
   try {
@@ -56,23 +59,25 @@ function usedNames(dir: string): { used: Set<string>; quoted: Set<string> } {
  * Online: also against the key names in Phase (`dev`). Names only, never values. `ok` is false on any finding.
  */
 export async function check(opts: { cwd?: string; offline?: boolean } = {}): Promise<{ ok: boolean; report: string }> {
-  const dir = loadConfig(opts.cwd ?? process.cwd()).dir;
+  const config = loadConfig(opts.cwd ?? process.cwd());
+  const dir = config.dir;
   const file = join(dir, EXAMPLE_FILE);
   if (!existsSync(file)) throw new PhaseLoaderError(`${EXAMPLE_FILE} not found in ${dir} (create it with "phase-loader example --write").`);
+  const external = new Set(config.external);
   const documented = new Set(exampleNames(readFileSync(file, "utf8")));
   const { used, quoted } = usedNames(dir);
 
   const findings: [title: string, names: string[]][] = [
-    [`Used in code but undocumented in ${EXAMPLE_FILE}:`, [...used].filter((n) => !documented.has(n))],
+    [`Used in code but undocumented in ${EXAMPLE_FILE}:`, [...used].filter((n) => !documented.has(n) && !external.has(n))],
     [
       `Orphan in ${EXAMPLE_FILE} (never read in tracked code):`,
-      [...documented].filter((n) => !used.has(n) && !quoted.has(n)),
+      [...documented].filter((n) => !used.has(n) && !quoted.has(n) && !external.has(n)),
     ],
   ];
   if (!opts.offline) {
     const inPhase = new Set((await phaseNames(opts.cwd ?? process.cwd())).sections.flatMap((s) => s.names));
     findings.push(
-      [`In ${EXAMPLE_FILE} but not in Phase:`, [...documented].filter((n) => !inPhase.has(n))],
+      [`In ${EXAMPLE_FILE} but not in Phase:`, [...documented].filter((n) => !inPhase.has(n) && !external.has(n))],
       [`In Phase but not in ${EXAMPLE_FILE}:`, [...inPhase].filter((n) => !documented.has(n))],
     );
   }

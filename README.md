@@ -32,7 +32,8 @@ secrets: host, app ids, paths and keyring account names only.
     }
   },
   "require": ["DATABASE_URL"],
-  "allowLiteral": []
+  "allowLiteral": [],
+  "external": ["WORKER_TIER"]
 }
 ```
 
@@ -45,6 +46,7 @@ secrets: host, app ids, paths and keyring account names only.
 | `targets.<name>.personal.account` | Optional keyring account holding a personal app id or name; exported last (path `/`). |
 | `require` | Keys the merged export must contain; otherwise loading fails and lists the missing names. |
 | `allowLiteral` | Keys whose value may start with `${`. Any other value starting with `${` is an unresolved Phase reference and fails the load. |
+| `external` | Names set or read outside the Phase `dev` export: Coolify-only values, CI, runtime, variables read by libraries (`OTEL_*`). `example --write` lists them in their own section; `check` never reports them. |
 
 ## Tokens
 

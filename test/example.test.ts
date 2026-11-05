@@ -55,6 +55,17 @@ describe("example", () => {
     expect(out).not.toContain(SENTINEL);
   });
 
+  it("external names get their own section and count as wanted", async () => {
+    const dir = writeConfig({ ...validConfig(), external: ["WORKER_TIER", "ZED", "APP_PORT"] });
+    await example({ cwd: dir, write: true });
+    const file = readFileSync(join(dir, ".env.example"), "utf8");
+    expect(file).toBe(
+      "# repo /\nALPHA=\nSHARED=\nZED=\n\n# repo /local\nLOCAL_X=\n\n" +
+        "# external (not loaded from Phase: Coolify, CI, runtime, libraries)\nAPP_PORT=\nWORKER_TIER=\n",
+    );
+    expect(await example({ cwd: dir })).toMatch(/up to date/);
+  });
+
   it("reports up to date when names match", async () => {
     await example({ cwd, write: true });
     expect(await example({ cwd })).toMatch(/up to date/);

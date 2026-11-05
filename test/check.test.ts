@@ -138,4 +138,20 @@ describe("check (online)", () => {
     expect(report).not.toContain("IN_BOTH");
     expect(report).not.toContain(SENTINEL);
   });
+
+  it("external names are neither undocumented, orphan nor missing in Phase", async () => {
+    fake.apps.push({ id: APP_ID, name: "repo", secrets: { Development: { "/": { IN_BOTH: SENTINEL, OTEL_X: SENTINEL }, "/local": {} } } });
+    syncFake();
+    const dir = repo(
+      {
+        ".env.example": "IN_BOTH=\nOTEL_X=\nWORKER_TIER=\n",
+        "src/a.ts": "process.env.IN_BOTH; process.env.WORKER_TIER; process.env.PATH; process.env.COOLIFY_ONLY",
+      },
+      [".env.example", "src/a.ts"],
+    );
+    writeFileSync(join(dir, "phase.config.json"), JSON.stringify({ ...validConfig(), external: ["WORKER_TIER", "OTEL_X", "COOLIFY_ONLY"] }));
+    const { ok, report } = await check({ cwd: dir });
+    expect(report).toBe("Env names are consistent.");
+    expect(ok).toBe(true);
+  });
 });

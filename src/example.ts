@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { loadConfig } from "./config.js";
 import { fetchLayers } from "./load.js";
 
 export const EXAMPLE_FILE = ".env.example";
@@ -30,7 +31,11 @@ export function exampleNames(text: string): string[] {
  * Returns the text to print; values are never read into the output.
  */
 export async function example(opts: { cwd?: string; write?: boolean } = {}): Promise<string> {
-  const { dir, sections } = await phaseNames(opts.cwd ?? process.cwd());
+  const cwd = opts.cwd ?? process.cwd();
+  const { dir, sections: phase } = await phaseNames(cwd);
+  const inPhase = new Set(phase.flatMap((s) => s.names));
+  const external = [...new Set(loadConfig(cwd).external)].filter((n) => !inPhase.has(n)).sort();
+  const sections = [...phase, { label: "external (not loaded from Phase: Coolify, CI, runtime, libraries)", names: external }];
   const text = sections
     .filter((s) => s.names.length > 0)
     .map((s) => `# ${s.label}\n${s.names.map((n) => `${n}=`).join("\n")}\n`)

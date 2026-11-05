@@ -32,6 +32,11 @@ export interface PhaseConfig {
   require: string[];
   /** Keys whose value may start with `${` (not a Phase reference). */
   allowLiteral: string[];
+  /**
+   * Names read or set outside the Phase `dev` export (Coolify-only values, CI, runtime, libraries such as OTEL_*):
+   * listed in their own `.env.example` section and never reported by `check`.
+   */
+  external: string[];
 }
 
 const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
@@ -110,6 +115,7 @@ function parseConfig(file: string, dir: string): PhaseConfig {
     targets,
     require: keys(raw.require, "require"),
     allowLiteral: keys(raw.allowLiteral, "allowLiteral"),
+    external: keys(raw.external, "external"),
   };
 }
 
