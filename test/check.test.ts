@@ -40,6 +40,24 @@ afterEach(() => {
 });
 
 describe("check --offline", () => {
+  it("check offline counts a documented name read through a helper as used", async () => {
+    const dir = repo(
+      {
+        ".env.example": "KEY_HELPER=\nKEY_DQ=\nKEY_TPL=\nKEY_GONE=\nKEY_PYGET=\n",
+        "server/env.ts":
+          "function optional(n: string) { return process.env[n] }\n" +
+          "const a = optional('KEY_HELPER'); const b = required(\"KEY_DQ\"); const c = flag(`KEY_TPL`);\n",
+        "tool.py": 'import os\nv = os.environ.get("KEY_PYGET")\nw = os.environ.get("KEY_PYNEW", "x")\n',
+      },
+      [".env.example", "server/env.ts", "tool.py", "phase.config.json"],
+    );
+    const { ok, report } = await check({ cwd: dir, offline: true });
+    expect(ok).toBe(false);
+    expect(report).toMatch(/orphan[^\n]*\n\s*KEY_GONE$/im);
+    expect(report).toMatch(/undocumented[^\n]*\n\s*KEY_PYNEW$/im);
+    for (const name of ["KEY_HELPER", "KEY_DQ", "KEY_TPL", "KEY_PYGET"]) expect(report).not.toContain(name);
+  });
+
   it("check offline finds undocumented KEY_A and orphan KEY_B", async () => {
     const dir = repo(
       {

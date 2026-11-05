@@ -89,9 +89,11 @@ phase-loader check --offline    # .env.example vs env reads in git-tracked files
 phase-loader check              # additionally vs the key names in Phase
 ```
 
-`check` recognises `process.env.X`, `process.env["X"]`, `import.meta.env.X`, `os.environ["X"]` and `os.getenv("X")`
-in tracked `.js/.ts/.vue/.py` files (not under `node_modules`), ignores runtime built-ins such as `NODE_ENV`, prints
-names only and exits 1 on any undocumented or orphan name. The personal app is not part of `.env.example`.
+`check` recognises `process.env.X`, `process.env["X"]`, `import.meta.env.X`, `os.environ["X"]`, `os.environ.get("X")`
+and `os.getenv("X")` in tracked `.js/.ts/.vue/.py` files (not under `node_modules`), ignores runtime built-ins such as
+`NODE_ENV`, prints names only and exits 1 on any undocumented or orphan name. A name from `.env.example` that appears
+quoted anywhere in that code (`optional('KEY')`, `env("KEY")`) counts as read, so env helpers cause no orphans; a new
+key read only through such a helper is not reported as undocumented. The personal app is not part of `.env.example`.
 
 ## API
 

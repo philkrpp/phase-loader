@@ -12,7 +12,15 @@ const USAGE = [
   /import\.meta\.env\.([A-Za-z_][A-Za-z0-9_]*)/g,
   /os\.environ\[\s*["']([A-Za-z_][A-Za-z0-9_]*)["']\s*\]/g,
   /os\.getenv\(\s*["']([A-Za-z_][A-Za-z0-9_]*)["']/g,
+  /os\.environ\.get\(\s*["']([A-Za-z_][A-Za-z0-9_]*)["']/g,
 ];
+/**
+ * A documented name quoted anywhere in tracked code (`optional('KEY')`, `env("KEY")`, a list of names) counts as
+ * read, so helpers around `process.env[name]` do not produce orphans.
+ * shortcut: undocumented detection still sees only the USAGE patterns, so a new key read only through a helper is
+ * not reported; upgrade with a configurable helper list if that bites.
+ */
+const QUOTED = /["'`]([A-Z_][A-Z0-9_]*)["'`]/g;
 /** Provided by the runtime or by phase-loader itself, never documented in `.env.example`. */
 const BUILT_IN = new Set(["NODE_ENV", "MODE", "DEV", "PROD", "SSR", "BASE_URL", "CI", "PHASE_ENV_LOADED"]);
 
@@ -26,8 +34,9 @@ function trackedFiles(dir: string): string[] {
   }
 }
 
-function usedNames(dir: string): Set<string> {
+function usedNames(dir: string): { used: Set<string>; quoted: Set<string> } {
   const used = new Set<string>();
+  const quoted = new Set<string>();
   for (const file of trackedFiles(dir)) {
     if (!SOURCE.test(file) || file.split("/").includes("node_modules")) continue;
     let text: string;
@@ -37,8 +46,9 @@ function usedNames(dir: string): Set<string> {
       continue; // tracked but deleted in the working tree
     }
     for (const pattern of USAGE) for (const m of text.matchAll(pattern)) if (!BUILT_IN.has(m[1]!)) used.add(m[1]!);
+    for (const m of text.matchAll(QUOTED)) quoted.add(m[1]!);
   }
-  return used;
+  return { used, quoted };
 }
 
 /**
@@ -50,11 +60,14 @@ export async function check(opts: { cwd?: string; offline?: boolean } = {}): Pro
   const file = join(dir, EXAMPLE_FILE);
   if (!existsSync(file)) throw new PhaseLoaderError(`${EXAMPLE_FILE} not found in ${dir} (create it with "phase-loader example --write").`);
   const documented = new Set(exampleNames(readFileSync(file, "utf8")));
-  const used = usedNames(dir);
+  const { used, quoted } = usedNames(dir);
 
   const findings: [title: string, names: string[]][] = [
     [`Used in code but undocumented in ${EXAMPLE_FILE}:`, [...used].filter((n) => !documented.has(n))],
-    [`Orphan in ${EXAMPLE_FILE} (never read in tracked code):`, [...documented].filter((n) => !used.has(n))],
+    [
+      `Orphan in ${EXAMPLE_FILE} (never read in tracked code):`,
+      [...documented].filter((n) => !used.has(n) && !quoted.has(n)),
+    ],
   ];
   if (!opts.offline) {
     const inPhase = new Set((await phaseNames(opts.cwd ?? process.cwd())).sections.flatMap((s) => s.names));
