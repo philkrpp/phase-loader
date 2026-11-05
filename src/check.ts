@@ -29,7 +29,13 @@ const BUILT_IN = new Set([
 
 function trackedFiles(dir: string): string[] {
   try {
-    return execFileSync("git", ["ls-files", "-z"], { cwd: dir, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })
+    // Large monorepos print more than the 1 MB default buffer (ENOBUFS).
+    return execFileSync("git", ["ls-files", "-z"], {
+      cwd: dir,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      maxBuffer: 256 * 1024 * 1024,
+    })
       .split("\0")
       .filter(Boolean);
   } catch {

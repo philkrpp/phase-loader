@@ -24,6 +24,12 @@ describe("loadConfig", () => {
     expect(config.allowLiteral).toEqual([]);
   });
 
+  it("reads an optional per-target require and validates its names", () => {
+    expect(loadConfig(writeConfig(withTarget({ require: ["DB_URL"] }))).targets.dev?.require).toEqual(["DB_URL"]);
+    expect(loadConfig(writeConfig(validConfig())).targets.dev?.require).toBeUndefined();
+    expect(() => loadConfig(writeConfig(withTarget({ require: ["NOT-A-KEY"] })))).toThrow(/require/);
+  });
+
   it("config rejects http host and paths without /", () => {
     const http = writeConfig({ ...validConfig(), host: "http://phase.example.test" });
     expect(() => loadConfig(http)).toThrow(PhaseLoaderError);

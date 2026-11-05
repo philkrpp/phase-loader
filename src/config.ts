@@ -21,6 +21,8 @@ export interface PhaseTarget {
   layers: PhaseLayer[];
   /** Keyring account holding the personal app id or name; exported last with path `/`. */
   personal?: { account: string };
+  /** Replaces the top-level `require` for this target (e.g. a release target without a database). */
+  require?: string[];
 }
 
 export interface PhaseConfig {
@@ -106,6 +108,7 @@ function parseConfig(file: string, dir: string): PhaseConfig {
         account: str(value.personal.account, ACCOUNT, `${at}: "personal.account" must be a keyring account name`),
       };
     }
+    if (value.require !== undefined) target.require = keys(value.require, `targets.${name}.require`);
     targets[name] = target;
   }
 

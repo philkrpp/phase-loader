@@ -83,7 +83,7 @@ function merge(target: string, config: PhaseConfig, fetched: FetchedLayer[], kee
   const exported: Record<string, string> = {};
   for (const layer of fetched) for (const [key, value] of layer.entries) exported[key] = value;
 
-  const missing = config.require.filter((key) => !Object.hasOwn(exported, key));
+  const missing = (config.targets[target]?.require ?? config.require).filter((key) => !Object.hasOwn(exported, key));
   if (missing.length > 0) {
     throw new PhaseLoaderError(
       `Phase export for "${target}" lacks required key(s): ${missing.join(", ")}. Check the token's access.`,

@@ -187,6 +187,18 @@ describe("loadPhaseEnv", () => {
     expect(error.message).not.toContain(SENTINEL);
   });
 
+  it("a target's own require replaces the top-level list", async () => {
+    repoApp({ PRESENT: SENTINEL });
+    const config = validConfig();
+    const targets = config.targets as Record<string, Record<string, unknown>>;
+    targets.dev = { ...targets.dev, require: ["PRESENT"] };
+    const { env } = await load(setup({ ...config, require: ["MISSING_TOP"] }));
+    expect(env.PRESENT).toBe(SENTINEL);
+    targets.dev = { ...targets.dev, require: ["MISSING_OWN"] };
+    const error = await errorOf(load(setup({ ...config, require: [] })));
+    expect(error.message).toContain("MISSING_OWN");
+  });
+
   it("keep leaves an existing process value out of the result", async () => {
     repoApp({ A: "phase", B: "phase" });
     vi.stubEnv("A", "mine");

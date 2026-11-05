@@ -43,6 +43,7 @@ secrets: host, app ids, paths and keyring account names only.
 | `targets.<name>.env` | Phase environment name, e.g. `Development`. |
 | `targets.<name>.account` | OS keyring account (service `phase`) holding the service token for this target. |
 | `targets.<name>.layers` | Apps (`appId` = Phase app UUID; `app` = name for messages) and paths, exported in order; later layers win. |
+| `targets.<name>.require` | Optional; replaces the top-level `require` for this target (e.g. a release target without a database). |
 | `targets.<name>.personal.account` | Optional keyring account holding a personal app id or name; exported last (path `/`). |
 | `require` | Keys the merged export must contain; otherwise loading fails and lists the missing names. |
 | `allowLiteral` | Keys whose value may start with `${`. Any other value starting with `${` is an unresolved Phase reference and fails the load. |
