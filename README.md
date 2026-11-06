@@ -113,7 +113,10 @@ Object.assign(process.env, env);
   keys whose existing `process.env` value wins; they are left out of `env`.
 - `loadPhaseEnvSync(target, { cwd?, keep? })` blocks, assigns the values to `process.env` (keys in `keep` that are
   already set stay untouched) and returns `{ env, layers }`. It runs the same SDK child through `execFileSync`; use it
-  where nothing can be awaited, e.g. a config module evaluated at import time.
+  where nothing can be awaited, e.g. a config module evaluated at import time. In an app that is bundled (esbuild)
+  and where the package stays `external`, load it with `createRequire(import.meta.url)("@philkrpp/phase-loader")`
+  instead of a top-level `await import(…)`: a top-level await turns the module async, and in esbuild's lazy module
+  wrappers an import cycle then never settles. `require` of this ESM package needs Node 22.12 or newer.
 - `run(target, argv)` resolves with the child's exit code.
 - Every expected failure is a `PhaseLoaderError` whose message names keys, apps, paths, accounts or status codes,
   never a value or a token.
