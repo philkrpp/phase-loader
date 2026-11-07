@@ -31,11 +31,12 @@ export function readHidden(prompt: string, input: NodeJS.ReadableStream, output:
 
 /**
  * Stores a token (or, with `personal`, the personal app id/name) in the OS keyring, service `phase`, account from
- * `phase.config.json`. Empty input changes nothing. Returns the message to print; it never contains the value.
+ * `phase.config.json`. A target with an account list stores into its last account (the personal fallback) unless
+ * `account` names another one of the list. Empty input changes nothing. Returns the message to print; it never contains the value.
  */
 export async function setup(
   target: string,
-  opts: { personal?: boolean; cwd?: string; ask?: (prompt: string) => Promise<string> } = {},
+  opts: { personal?: boolean; account?: string; cwd?: string; ask?: (prompt: string) => Promise<string> } = {},
 ): Promise<string> {
   const config = loadConfig(opts.cwd ?? process.cwd());
   const t = Object.hasOwn(config.targets, target) ? config.targets[target] : undefined;
@@ -45,7 +46,15 @@ export async function setup(
     );
   }
   if (opts.personal && !t.personal) throw new PhaseLoaderError(`Target "${target}" has no "personal" account configured.`);
-  const account = opts.personal ? t.personal!.account : t.account;
+  if (opts.personal && opts.account !== undefined) {
+    throw new PhaseLoaderError(`"--account" and "--personal" cannot be combined.`);
+  }
+  if (opts.account !== undefined && !t.account.includes(opts.account)) {
+    throw new PhaseLoaderError(
+      `Target "${target}" has no account "${opts.account}" (accounts: ${t.account.join(", ")}).`,
+    );
+  }
+  const account = opts.personal ? t.personal!.account : (opts.account ?? t.account.at(-1)!);
   const what = opts.personal ? "personal app (id or name)" : "service token";
   const ask = opts.ask ?? ((prompt: string) => readHidden(prompt, process.stdin, process.stderr));
 

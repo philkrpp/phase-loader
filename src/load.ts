@@ -9,7 +9,7 @@ import {
   type FetchedLayer,
   type FetchRequest,
 } from "./fetch-protocol.js";
-import { readKeyring, readToken } from "./token.js";
+import { readKeyring, resolveToken } from "./token.js";
 
 export interface LoadedPhaseEnv {
   /** Merged values; never print them. */
@@ -56,7 +56,7 @@ function prepare(target: string, cwd: string): Prepared {
       `Unknown target "${target}" (phase.config.json defines: ${Object.keys(config.targets).join(", ")}).`,
     );
   }
-  const token = readToken(t.account);
+  const { token, account } = resolveToken(t.account, target);
   const personal = personalApp(t);
   return {
     config,
@@ -67,7 +67,7 @@ function prepare(target: string, cwd: string): Prepared {
       layers: t.layers.map(({ app, appId, path }) => ({ app, appId, path })),
       ...(personal ? { personal: personal.ref } : {}),
     },
-    ctx: { host: config.host, account: t.account, personalSource: personal?.source },
+    ctx: { host: config.host, account, personalSource: personal?.source },
   };
 }
 

@@ -23,25 +23,39 @@ export function writeKeyring(account: string, value: string): void {
 }
 
 /**
- * Token of a keyring account: the OS keyring (service `phase`) unless `PHASE_TOKEN_SOURCE=env`; the env variable
- * {@link tokenEnvVar} when the keyring is skipped, unavailable or has no entry.
+ * Token for an account or an ordered account list (first entry = project-bound, last = personal fallback).
+ * The OS keyring (service `phase`) is read first, unless `PHASE_TOKEN_SOURCE=env`: the first account with an entry
+ * wins. Without any keyring entry (or when the keyring is skipped or unavailable) the first set env variable
+ * {@link tokenEnvVar} in list order wins. Returns the account that supplied the token; there is no retry with
+ * another account later. `target` only names the setup command in the error.
  */
-export function readToken(account: string): string {
-  const envVar = tokenEnvVar(account);
+export function resolveToken(account: string | readonly string[], target?: string): { token: string; account: string } {
+  const accounts = typeof account === "string" ? [account] : account;
   let keyring = "keyring skipped (PHASE_TOKEN_SOURCE=env)";
   if (process.env.PHASE_TOKEN_SOURCE !== "env") {
-    try {
-      const token = readKeyring(account);
-      if (token) return token;
-      keyring = "no keyring entry";
-    } catch {
-      keyring = "keyring unavailable";
+    keyring = "no keyring entry";
+    for (const candidate of accounts) {
+      try {
+        const token = readKeyring(candidate);
+        if (token) return { token, account: candidate };
+      } catch {
+        keyring = "keyring unavailable";
+      }
     }
   }
-  const fromEnv = process.env[envVar]?.trim();
-  if (fromEnv) return fromEnv;
+  for (const candidate of accounts) {
+    const fromEnv = process.env[tokenEnvVar(candidate)]?.trim();
+    if (fromEnv) return { token: fromEnv, account: candidate };
+  }
+  const names = accounts.map((a) => `"${a}"`).join(", ");
+  const envVars = accounts.map(tokenEnvVar).join(", ");
   throw new PhaseLoaderError(
-    `No Phase token for account "${account}" (${keyring}, ${envVar} unset). ` +
-      `Store it in the OS keyring (service "${KEYRING_SERVICE}", account "${account}") with "phase-loader setup", or set ${envVar}.`,
+    `No Phase token for account${accounts.length > 1 ? "s" : ""} ${names} (${keyring}, ${envVars} unset). ` +
+      `Store it in the OS keyring (service "${KEYRING_SERVICE}") with "phase-loader setup ${target ?? "<target>"}", or set ${envVars}.`,
   );
+}
+
+/** Token of a keyring account or an ordered account list; see {@link resolveToken}. */
+export function readToken(account: string | readonly string[]): string {
+  return resolveToken(account).token;
 }

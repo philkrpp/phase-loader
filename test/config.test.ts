@@ -55,6 +55,27 @@ describe("loadConfig", () => {
     expect(() => loadConfig(badKey)).toThrow(/require/);
   });
 
+  it("normalizes target account to a list: a string and a list are accepted", () => {
+    expect(loadConfig(writeConfig(validConfig())).targets.dev?.account).toEqual(["repo/dev"]);
+    const list = withTarget({ account: ["compleadly/dev", "me/dev"] });
+    expect(loadConfig(writeConfig(list)).targets.dev?.account).toEqual(["compleadly/dev", "me/dev"]);
+    expect(loadConfig(writeConfig(withTarget({ account: ["me/dev"] }))).targets.dev?.account).toEqual(["me/dev"]);
+  });
+
+  it("rejects an empty list, non-strings and empty strings in account, naming targets.<name>.account", () => {
+    for (const account of [[], [1], [""], ["repo/dev", 2], "", 5, null, { a: 1 }, ["a\u0000b"]]) {
+      const cwd = writeConfig(withTarget({ account }));
+      expect(() => loadConfig(cwd)).toThrow(PhaseLoaderError);
+      expect(() => loadConfig(cwd)).toThrow(/targets\.dev\.account/);
+    }
+    expect(() => loadConfig(writeConfig(withTarget({ account: undefined })))).toThrow(/targets\.dev\.account/);
+  });
+
+  it("personal.account stays a single string", () => {
+    const config = withTarget({ personal: { account: ["a", "b"] } });
+    expect(() => loadConfig(writeConfig(config))).toThrow(/personal\.account/);
+  });
+
   it("names the file when the JSON is invalid and when none exists", () => {
     const broken = writeConfig("{ not json");
     expect(() => loadConfig(broken)).toThrow(/phase\.config\.json/);

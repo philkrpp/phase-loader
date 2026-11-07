@@ -41,7 +41,7 @@ secrets: host, app ids, paths and keyring account names only.
 | --- | --- |
 | `host` | Phase host, `https://` only, no credentials in the URL. |
 | `targets.<name>.env` | Phase environment name, e.g. `Development`. |
-| `targets.<name>.account` | OS keyring account (service `phase`) holding the service token for this target. |
+| `targets.<name>.account` | OS keyring account (service `phase`) holding the service token for this target, or a non-empty list of accounts (see [Account lists](#account-lists)). |
 | `targets.<name>.layers` | Apps (`appId` = Phase app UUID; `app` = name for messages) and paths, exported in order; later layers win. |
 | `targets.<name>.require` | Optional; replaces the top-level `require` for this target (e.g. a release target without a database). |
 | `targets.<name>.personal.account` | Optional keyring account holding a personal app id or name; exported last (path `/`). |
@@ -59,6 +59,17 @@ keyring is unavailable or has no entry.
 
 The personal app comes from `PHASE_PERSONAL_APP` (app id or name), else from the keyring account
 `personal.account`. If neither is set, the layer is skipped and a line on stderr says why. The same token reads it.
+
+### Account lists
+
+```json
+"account": ["compleadly/dev", "me/dev"]
+```
+
+The project-bound token comes first and the personal token is the fallback: the first account with a keyring entry
+wins; without any keyring entry (or with `PHASE_TOKEN_SOURCE=env`) the first set `PHASE_TOKEN_<ACCOUNT>` in list
+order wins. A token that Phase rejects fails with the name of the account that supplied it; the next account is
+never tried.
 
 ## Run a command
 
@@ -78,9 +89,11 @@ SIGINT and SIGTERM are forwarded; the exit code is the child's. On stderr:
 ```sh
 phase-loader setup dev              # hidden prompt, stores the service token in the OS keyring
 phase-loader setup dev --personal   # stores the personal app id or name
+phase-loader setup dev --account compleadly/dev   # stores into another account of the target's list
 ```
 
-The value is written to service `phase`, account `targets.<name>.account` (or `personal.account`). Empty input
+The value is written to service `phase`, account `targets.<name>.account` (or `personal.account`). With an account
+list the default is the last account (the personal fallback); `--account NAME` must be one of the target's accounts. Empty input
 changes nothing; the value is never printed. Consumer repos typically add `"phase:setup": "phase-loader setup"`.
 
 ## `.env.example` and drift check
@@ -108,7 +121,7 @@ Object.assign(process.env, env);
 ```
 
 - `loadConfig(cwd)` returns the validated config.
-- `readToken(account)` returns the token of a keyring account.
+- `readToken(account)` returns the token of a keyring account or of an account list (first match wins).
 - `loadPhaseEnv(target, { cwd?, keep? })` returns `{ env, layers }` and does not touch `process.env`. `keep` lists
   keys whose existing `process.env` value wins; they are left out of `env`.
 - `loadPhaseEnvSync(target, { cwd?, keep? })` blocks, assigns the values to `process.env` (keys in `keep` that are

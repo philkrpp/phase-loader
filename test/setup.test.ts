@@ -24,6 +24,38 @@ describe("setup", () => {
     expect(message).not.toContain(SECRET);
   });
 
+  it("with an account list the default is the last account (personal fallback)", async () => {
+    const config = validConfig();
+    (config.targets as Record<string, Record<string, unknown>>).dev!.account = ["compleadly/dev", "me/dev"];
+    const message = await setup("dev", { cwd: writeConfig(config), ask: async () => SECRET });
+    expect(fake.keyring.get("phase|me/dev")).toBe(SECRET);
+    expect(fake.keyring.has("phase|compleadly/dev")).toBe(false);
+    expect(message).toContain("me/dev");
+    expect(message).not.toContain(SECRET);
+  });
+
+  it("--account stores into that account of the list; an unknown one is rejected", async () => {
+    const config = validConfig();
+    (config.targets as Record<string, Record<string, unknown>>).dev!.account = ["compleadly/dev", "me/dev"];
+    const dir = writeConfig(config);
+    await setup("dev", { cwd: dir, account: "compleadly/dev", ask: async () => SECRET });
+    expect(fake.keyring.get("phase|compleadly/dev")).toBe(SECRET);
+    expect(fake.keyring.has("phase|me/dev")).toBe(false);
+
+    const error = await setup("dev", { cwd: dir, account: "other/dev", ask: async () => "x" }).then(
+      () => undefined,
+      (e: unknown) => e as Error,
+    );
+    expect(error?.message).toMatch(/other\/dev.*compleadly\/dev.*me\/dev/);
+    expect(fake.keyring.has("phase|other/dev")).toBe(false);
+  });
+
+  it("--account together with --personal is rejected", async () => {
+    await expect(setup("dev", { cwd, personal: true, account: "repo/dev", ask: async () => "x" })).rejects.toThrow(
+      /--account.*--personal/,
+    );
+  });
+
   it("--personal writes the personal account", async () => {
     await setup("dev", { cwd, personal: true, ask: async () => "my-personal-app" });
     expect(fake.keyring.get("phase|repo/personal-app")).toBe("my-personal-app");

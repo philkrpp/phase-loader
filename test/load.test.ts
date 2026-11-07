@@ -18,6 +18,12 @@ function setup(config: Record<string, unknown> = validConfig()): string {
   return writeConfig(config);
 }
 
+function accountList(account: string[]): string {
+  const config = validConfig();
+  (config.targets as Record<string, Record<string, unknown>>).dev!.account = account;
+  return setup(config);
+}
+
 function load(cwd: string, keep?: string[]): ReturnType<typeof loadPhaseEnv> {
   syncFake();
   return loadPhaseEnv("dev", keep ? { cwd, keep } : { cwd });
@@ -261,6 +267,48 @@ describe("loadPhaseEnv", () => {
     const rejected = await errorOf(load(setup()));
     expect(rejected.message).toMatch(/401/);
     expect(rejected.message).toContain("repo/dev");
+  });
+
+  it("account list: only the second account in the keyring is used", async () => {
+    repoApp({ A: "root" });
+    fake.keyring.delete("phase|repo/dev");
+    fake.keyring.set("phase|me/dev", "me-token");
+    const { env } = await load(accountList(["compleadly/dev", "me/dev"]));
+    expect(env).toEqual({ A: "root" });
+    expect(sdkCalls().filter((c) => c.constructed)).toEqual([
+      { constructed: { token: "me-token", host: "https://phase.example.test" } },
+    ]);
+  });
+
+  it("account list: both in the keyring, the first wins", async () => {
+    repoApp({ A: "root" });
+    fake.keyring.set("phase|compleadly/dev", "project-token");
+    fake.keyring.set("phase|me/dev", "me-token");
+    await load(accountList(["compleadly/dev", "me/dev"]));
+    expect(sdkCalls().filter((c) => c.constructed).map((c) => (c.constructed as { token: string }).token)).toEqual([
+      "project-token",
+    ]);
+  });
+
+  it("account list: no token names all accounts and the setup command", async () => {
+    repoApp({ A: "root" });
+    fake.keyring.delete("phase|repo/dev");
+    const error = await errorOf(load(accountList(["compleadly/dev", "me/dev"])));
+    expect(error.message).toContain("compleadly/dev");
+    expect(error.message).toContain("me/dev");
+    expect(error.message).toContain("phase-loader setup dev");
+  });
+
+  it("account list: a rejected token fails with that account's name and never tries the next one", async () => {
+    repoApp({ A: "root" });
+    fake.keyring.set("phase|compleadly/dev", "project-token");
+    fake.keyring.set("phase|me/dev", "me-token");
+    fake.initError = `Error: 401: ${SENTINEL}`;
+    const error = await errorOf(load(accountList(["compleadly/dev", "me/dev"])));
+    expect(error.message).toBe(
+      'Phase rejected the token for account "compleadly/dev" at https://phase.example.test (401).',
+    );
+    expect(sdkCalls().filter((c) => c.constructed)).toHaveLength(1);
   });
 
   it("unknown target names the known targets", async () => {

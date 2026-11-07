@@ -16,8 +16,11 @@ export interface PhaseLayer {
 export interface PhaseTarget {
   /** Phase environment name, e.g. `Development`. */
   env: string;
-  /** Keyring account (service `phase`) holding the token for this target. */
-  account: string;
+  /**
+   * Keyring accounts (service `phase`) that may hold the token for this target, in priority order. The config
+   * accepts one string or a non-empty list; it is always a list here.
+   */
+  account: string[];
   layers: PhaseLayer[];
   /** Keyring account holding the personal app id or name; exported last with path `/`. */
   personal?: { account: string };
@@ -89,9 +92,14 @@ function parseConfig(file: string, dir: string): PhaseConfig {
     str(name, NAME, `${at} has an invalid name`);
     if (!isObject(value)) return fail(`${at} must be an object`);
     if (!Array.isArray(value.layers) || value.layers.length === 0) return fail(`${at}: "layers" must be a non-empty list`);
+    const accountWhat = `"targets.${name}.account" must be a keyring account name or a non-empty list of them`;
     const target: PhaseTarget = {
       env: str(value.env, ENV_NAME, `${at}: "env" must be a Phase environment name`),
-      account: str(value.account, ACCOUNT, `${at}: "account" must be a keyring account name`),
+      account: Array.isArray(value.account)
+        ? value.account.length > 0
+          ? value.account.map((account: unknown) => str(account, ACCOUNT, accountWhat))
+          : fail(accountWhat)
+        : [str(value.account, ACCOUNT, accountWhat)],
       layers: value.layers.map((layer: unknown, i: number) => {
         const li = `${at} layer ${i}`;
         if (!isObject(layer)) return fail(`${li} must be an object`);

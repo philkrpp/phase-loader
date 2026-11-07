@@ -6,7 +6,9 @@ import { run } from "./run.js";
 import { setup } from "./setup.js";
 
 const USAGE = `Usage:
-  phase-loader setup <target> [--personal]
+  phase-loader setup <target> [--personal | --account NAME]
+      Stores the token in the OS keyring. With an account list in phase.config.json the default is the last
+      account (the personal fallback); --account NAME picks another account of the target's list.
   phase-loader run <target> -- <command> [args...]
   phase-loader example [--write]
   phase-loader check [--offline]`;
@@ -24,8 +26,16 @@ async function main(argv: string[]): Promise<number> {
   }
   if (command === "setup") {
     const [target, ...flagArgs] = args;
-    if (!target || target.startsWith("--") || !flagArgs.every((a) => a === "--personal")) return usage();
-    process.stderr.write(`${await setup(target, { personal: flagArgs.includes("--personal") })}\n`);
+    if (!target || target.startsWith("--")) return usage();
+    let personal = false;
+    let account: string | undefined;
+    for (let i = 0; i < flagArgs.length; i++) {
+      const flag = flagArgs[i];
+      if (flag === "--personal") personal = true;
+      else if (flag === "--account" && account === undefined && flagArgs[i + 1] && !flagArgs[i + 1]!.startsWith("--")) account = flagArgs[++i];
+      else return usage();
+    }
+    process.stderr.write(`${await setup(target, { personal, ...(account !== undefined ? { account } : {}) })}\n`);
     return 0;
   }
   if (command === "example") {
